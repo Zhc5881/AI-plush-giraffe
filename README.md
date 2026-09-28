@@ -22,7 +22,7 @@ Google Edge AI Gallery App support MCP and Skills, what would be recommended cod
 
 ---
 ## [Proposal](https://github.com/rkuo2000/AI-plush-giraffe/blob/main/PROPOSAL.md)
-```
+```text
                    SMART GIRAFFE
  ┌────────────────────────────────────────────┐
  │                AMB82-Mini                  │
@@ -34,9 +34,9 @@ Google Edge AI Gallery App support MCP and Skills, what would be recommended cod
  │        HTTP/WebSocket JSON interface       │
  │                    │                       │
  │       ┌────────────┼────────────┐          │
- │       ▼            ▼            ▼                   │
- │    Speaker       Servos        LEDs        │
- │   / playback   head / ears   expression    │
+ │       ▼            ▼            ▼          │
+ │    Speaker       Servos        LEDs         │
+ │   / playback   head / ears   expression     │
  └────────────────────┬───────────────────────┘
                       │ Wi-Fi
                       │
@@ -51,11 +51,11 @@ Google Edge AI Gallery App support MCP and Skills, what would be recommended cod
  │        JS Skill / MCP ecosystem            │
  │                 │                          │
  │       ┌─────────┼─────────┐                │
- │       ▼         ▼         ▼                      │
- │     look()    emotion()   move()           │
- │     status()  play()      etc.             │
+ │       ▼         ▼         ▼                │
+ │     look()    emotion()   move()            │
+ │     status()  play()      etc.              │
  └────────────────────────────────────────────┘
-``` 
+```
 ### System Architecture Diagram
 ![](https://github.com/rkuo2000/AI-plush-giraffe/blob/main/assets/AI-plush-giraffe_architecture_diagram.png?raw=true)
 
