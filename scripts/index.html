@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Giraffe Companion Skill Bridge</title>
+</head>
+<body>
+<script>
+/*
+ * Google AI Edge Gallery Skill -> AMB82-Mini bridge.
+ *
+ * Change this address to the AMB82-Mini's LAN address.
+ * A fixed DHCP lease is convenient during development.
+ */
+const GIRAFFE_BASE_URL = "http://192.168.1.82:8080";
+const REQUEST_TIMEOUT_MS = 4000;
+
+const ALLOWED_EMOTIONS = new Set([
+  "happy", "curious", "thinking", "sleepy"
+]);
+
+const ALLOWED_SOUNDS = new Set([
+  "hello", "giggle", "goodbye"
+]);
+
+async function giraffeGet(path) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(GIRAFFE_BASE_URL + path, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Giraffe returned HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function parseCommand(data) {
+  const cmd = typeof data === "string" ? JSON.parse(data) : data;
+
+  if (!cmd || typeof cmd !== "object" || Array.isArray(cmd)) {
+    throw new Error("Command must be a JSON object");
+  }
+
+  if (typeof cmd.action !== "string") {
+    throw new Error("Missing action");
+  }
+
+  return cmd;
+}
+
+async function executeCommand(cmd) {
+  switch (cmd.action) {
+    case "look":
+      return giraffeGet("/look");
+
+    case "status":
+      return giraffeGet("/status");
+
+    case "nod":
+      return giraffeGet("/nod");
+
+    case "shake":
+      return giraffeGet("/shake");
+
+    case "wave":
+      return giraffeGet("/wave");
+
+    case "stop":
+      return giraffeGet("/stop");
+
+    case "emotion": {
+      const value = String(cmd.value || "");
+      if (!ALLOWED_EMOTIONS.has(value)) {
+        throw new Error("Unsupported emotion");
+      }
+      return giraffeGet("/emotion/" + encodeURIComponent(value));
+    }
+
+    case "play": {
+      const value = String(cmd.value || "");
+      if (!ALLOWED_SOUNDS.has(value)) {
+        throw new Error("Unsupported sound");
+      }
+      return giraffeGet("/play/" + encodeURIComponent(value));
+    }
+
+    default:
+      throw new Error("Unknown giraffe action");
+  }
+}
+
+/*
+ * Entry point used by the AI Edge Gallery JavaScript Skill environment.
+ * It always returns a JSON string so errors are visible to the agent
+ * without exposing stack traces or internal browser details.
+ */
+window.ai_edge_gallery_get_result = async function(data) {
+  try {
+    const cmd = parseCommand(data);
+    const result = await executeCommand(cmd);
+    return JSON.stringify({ ok: true, result });
+  } catch (error) {
+    const message = error && error.name === "AbortError"
+      ? "Giraffe request timed out"
+      : String(error && error.message ? error.message : error);
+
+    return JSON.stringify({ ok: false, error: message });
+  }
+};
+</script>
+</body>
+</html>
