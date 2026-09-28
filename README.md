@@ -2,7 +2,7 @@
 ![](https://github.com/rkuo2000/AI-plush-giraffe/blob/main/assets/plush_toy_giraffe.webp?raw=true)
 
 ---
-## System Requirements
+## System HW & SW specifications
 
 ### System Block Diagram
 ![](https://github.com/rkuo2000/AI-plush-giraffe/blob/main/assets/AI-plush-toy_block_diagram.png?raw=true)
