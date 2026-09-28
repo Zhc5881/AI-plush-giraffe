@@ -1,6 +1,10 @@
-# Giraffe AI Plush
-
+# AI Plush Giraffe
 Example starter repository for an AMB82-Mini smart plush controlled by a Google AI Edge Gallery JavaScript Agent Skill.
+
+## Prompt:
+```
+Google Edge AI Gallery App support MCP and Skills, what would be recommended code to run on AMB82-mini to host on Giraffe as AI plush toy
+```
 
 ## Layout
 
