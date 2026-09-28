@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giraffe Companion Bridge</title>
+</head>
+<body>
+<script>
+  // Change this to the AMB82-Mini address printed by GiraffeAgent.ino.
+  // A stable DHCP reservation is recommended during development.
+  const GIRAFFE_BASE_URL = "http://192.168.1.82:8080";
+
+  const ALLOWED_EMOTIONS = new Set(["happy", "curious", "thinking", "sleepy"]);
+  const ALLOWED_SOUNDS = new Set(["hello", "success", "thinking"]);
+
+  async function callGiraffe(path) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    try {
+      const response = await fetch(`${GIRAFFE_BASE_URL}${path}`, {
+        method: "GET",
+        cache: "no-store",
+        signal: controller.signal
+      });
+
+      const text = await response.text();
+      let payload;
+      try {
+        payload = JSON.parse(text);
+      } catch (_) {
+        throw new Error("Giraffe returned invalid JSON");
+      }
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error || `HTTP ${response.status}`);
+      }
+      return payload;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  window['ai_edge_gallery_get_result'] = async function(data) {
+    try {
+      const cmd = JSON.parse(data);
+      if (!cmd || typeof cmd.action !== "string") {
+        throw new Error("action is required");
+      }
+
+      let result;
+      switch (cmd.action) {
+        case "status":
+          result = await callGiraffe("/api/status");
+          break;
+        case "look":
+          result = await callGiraffe("/api/look");
+          break;
+        case "nod":
+          result = await callGiraffe("/api/nod");
+          break;
+        case "shake":
+          result = await callGiraffe("/api/shake");
+          break;
+        case "wave":
+          result = await callGiraffe("/api/wave");
+          break;
+        case "emotion":
+          if (!ALLOWED_EMOTIONS.has(cmd.value)) throw new Error("Unsupported emotion");
+          result = await callGiraffe(`/api/emotion/${encodeURIComponent(cmd.value)}`);
+          break;
+        case "play":
+          if (!ALLOWED_SOUNDS.has(cmd.value)) throw new Error("Unsupported sound");
+          result = await callGiraffe(`/api/play/${encodeURIComponent(cmd.value)}`);
+          break;
+        default:
+          throw new Error(`Unknown action: ${cmd.action}`);
+      }
+
+      return JSON.stringify({ result });
+    } catch (e) {
+      const message = e && e.name === "AbortError"
+        ? "Giraffe request timed out"
+        : (e && e.message ? e.message : String(e));
+      return JSON.stringify({ error: message });
+    }
+  };
+</script>
+</body>
+</html>
