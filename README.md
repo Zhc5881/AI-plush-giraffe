@@ -35,8 +35,8 @@ Google Edge AI Gallery App support MCP and Skills, what would be recommended cod
  │                    │                       │
  │       ┌────────────┼────────────┐          │
  │       ▼            ▼            ▼          │
- │    Speaker       Servos        LEDs         │
- │   / playback   head / ears   expression     │
+ │    Speaker       Servos        LEDs        │
+ │   / playback   head / ears   expression    │
  └────────────────────┬───────────────────────┘
                       │ Wi-Fi
                       │
@@ -52,8 +52,8 @@ Google Edge AI Gallery App support MCP and Skills, what would be recommended cod
  │                 │                          │
  │       ┌─────────┼─────────┐                │
  │       ▼         ▼         ▼                │
- │     look()    emotion()   move()            │
- │     status()  play()      etc.              │
+ │     look()    emotion()   move()           │
+ │     status()  play()      etc.             │
  └────────────────────────────────────────────┘
 ```
 ### System Architecture Diagram
