@@ -1,188 +1,366 @@
-# AMB82-Mini + Google AI Edge Gallery Smart Giraffe
+##Project proposal
+The proposed project is an AI Agent RoboCar powered by the AMB82-Mini and Gemma4-E2B.
 
-## Project proposal
+The AMB82-Mini acts as the robot's embedded hardware controller, handling the camera, microphone, IR distance sensor, IMU, motor driver, speaker, and local safety functions. Gemma4-E2B acts as the higher-level AI agent responsible for understanding natural-language commands, interpreting visual information, planning tasks, and deciding which robot actions should be performed.
 
-The recommended architecture is to make the **AMB82-Mini the giraffe's embodied hardware controller**, while **Google AI Edge Gallery on an Android device provides the higher-level agent/reasoning layer**. Rather than putting a full MCP implementation and a large language model on the microcontroller, the AMB82 exposes a small semantic JSON/HTTP API for perception and physical actions.
+The user can interact with the RoboCar in two ways:
 
-```text
-                   SMART GIRAFFE
- ┌────────────────────────────────────────────┐
- │                AMB82-Mini                  │
- │                                            │
- │ Camera ──> local vision ──> perception     │
- │ Mic ─────> audio/event detection           │
- │                                            │
- │              Giraffe Agent API             │
- │        HTTP/WebSocket JSON interface       │
- │                    │                       │
- │       ┌────────────┼────────────┐          │
- │       ▼            ▼            ▼          │
- │    Speaker       Servos        LEDs         │
- │   / playback   head / ears   expression     │
- └────────────────────┬───────────────────────┘
-                      │ Wi-Fi
-                      │
-              Android phone/tablet
- ┌────────────────────▼───────────────────────┐
- │          Google AI Edge Gallery            │
- │                                            │
- │        on-device model / agent             │
- │                 │                          │
- │         Giraffe Agent Skill                │
- │                 │                          │
- │        JS Skill / MCP ecosystem            │
- │                 │                          │
- │       ┌─────────┼─────────┐                │
- │       ▼         ▼         ▼                │
- │     look()    emotion()   move()            │
- │     status()  play()      etc.              │
- └────────────────────────────────────────────┘
-```
+Through an Edge AI App running on an Android device.
+Directly by speaking to the RoboCar.
+                         AI AGENT ROBOCAR
 
-## Why use a small hardware API?
+ ┌──────────────────────────────────────────────────┐
+ │                 AMB82-Mini                      │
+ │                                                 │
+ │  Camera ───────> Visual perception              │
+ │  Microphone ───> Voice input                    │
+ │  IR Sensor ────> Obstacle detection             │
+ │  IMU ──────────> Motion/orientation             │
+ │                                                 │
+ │  Motor Driver ─> Wheel movement                 │
+ │  Speaker ──────> TTS / audio response           │
+ │  SD Card ──────> Audio/data storage              │
+ └──────────────────────┬──────────────────────────┘
+                        │ Wi-Fi
+                        │
+              ┌─────────▼─────────┐
+              │  Android Device   │
+              │                   │
+              │ Edge AI App       │
+              │ Gemma4-E2B       │
+              │ AI Agent          │
+              └─────────┬─────────┘
+                        │
+                 Task / Tool Commands
+                        │
+                        ▼
+                ┌───────────────┐
+                │   RoboCar     │
+                │ Move / Stop   │
+                │ Turn / Search │
+                │ Observe       │
+                └───────────────┘
 
-MCP is most useful at the agent/tool integration layer. The AMB82 should remain responsible for deterministic embedded functions: camera inference, GPIO/PWM, audio playback, LEDs, sensor events, and motion safety. A compact HTTP/JSON API is easier to debug, uses less RAM/flash, and prevents the language model from directly commanding low-level PWM or GPIO values.
+##Why use an AI Agent?
+Traditional robot cars are usually controlled through buttons, joysticks, or predefined programs. The user must explicitly control each movement.
 
-The agent should therefore request semantic actions such as:
+This project instead allows the user to describe a goal using natural language.
 
-```text
-giraffe.look()
-giraffe.nod()
-giraffe.shake_head()
-giraffe.wave()
-giraffe.set_emotion("happy")
-giraffe.play_sound("hello")
-giraffe.status()
-```
+For example:
 
-Do **not** expose low-level commands such as arbitrary servo angles, raw PWM duty cycles, or unrestricted GPIO writes to the agent.
+"Find the red cup."
+The AI agent can interpret the goal, use the camera to understand the environment, select appropriate robot actions, and monitor the result.
 
-## Two-level AI design
+The intended interaction loop is:
 
-```text
-       Fast / reactive                    Cognitive
-       AMB82-Mini                         Android device
+User instruction
+       ↓
+Gemma4-E2B
+       ↓
+Understand the task
+       ↓
+Plan high-level actions
+       ↓
+Robot action
+       ↓
+Camera / sensor feedback
+       ↓
+Re-plan if necessary
+       ↓
+Task completed
+       ↓
+TTS response
+The language model should not directly control raw motor PWM values. Low-level motor control, sensor handling, and safety functions remain on the AMB82-Mini.
 
-       local object detection             reasoning
-       gesture/event detection            conversation
-       camera capture                     agent skills
-       LEDs / audio / servos              MCP integrations
-       safety interlocks                  planning
-```
+##Two-level robot architecture
+       Cognitive / Agent Layer
+       Android + Gemma4-E2B
 
-The AMB82 can turn continuous sensor streams into compact events. For example:
+       natural language understanding
+       visual reasoning
+       task planning
+       high-level robot actions
+       conversation
+                │
+                │
+                ▼
+       Embedded Control Layer
+       AMB82-Mini
 
-```json
-{
-  "event": "object_detected",
-  "objects": [
-    {"class": "person", "confidence": 0.96},
-    {"class": "book", "confidence": 0.88}
-  ]
-}
-```
+       camera
+       microphone
+       IR distance sensor
+       IMU
+       motor control
+       audio playback
+       safety control
+This separation allows Gemma4-E2B to focus on reasoning while the AMB82-Mini handles deterministic and time-sensitive robot control.
 
-This event-driven approach avoids continuously sending camera frames to the phone.
+##Recommended robot tools
+The AI agent should interact with the RoboCar through a small set of semantic actions rather than unrestricted hardware commands.
 
-## Recommended first six tools
+robocar.look()
+robocar.move_forward()
+robocar.turn_left()
+robocar.turn_right()
+robocar.stop()
+robocar.get_distance()
+robocar.get_imu()
+robocar.play_sound()
+robocar.speak()
+robocar.status()
+Low-level commands such as raw PWM values, unrestricted GPIO control, or direct motor-driver registers should not be exposed to the AI agent.
 
-| Tool | AMB82 role | Agent purpose |
-|---|---|---|
-| `look()` | Camera + local detector | Understand surroundings |
-| `nod()` | Servo animation | Positive physical response |
-| `shake()` | Servo animation | Negative physical response |
-| `emotion()` | LED + bounded motion | Express state |
-| `play()` | microSD/audio playback | Sounds or prerecorded speech |
-| `status()` | Device telemetry | Check device state |
+##Main features
+1. Natural-language interaction
+The user can give instructions using normal language.
 
-## Example interaction
+Examples:
 
-```text
-User: "What am I holding?"
+"Go forward."
 
-Agent -> look()
-AMB82 -> {"objects":[{"label":"book","confidence":0.88}]}
-Agent -> formulates an answer
-Agent -> emotion("happy")
-Agent -> nod()
-Phone/TTS or toy audio -> "It looks like a book."
-```
+"Turn right."
 
-## Firmware/API design
+"What do you see?"
 
-The reference firmware in `GiraffeAgent.ino` exposes endpoints such as:
+"Find the red cup."
 
-```text
-GET /status
-GET /look
-GET /nod
-GET /shake
-GET /wave
-GET /emotion/happy
-GET /emotion/curious
-GET /emotion/thinking
-GET /emotion/sleepy
-GET /play/hello
-```
+"Explore the room."
+2. Vision-based perception
+The camera provides visual information that can be used by the AI agent to understand the environment and identify objects.
 
-The supplied implementation intentionally contains adapter functions for camera inference, servo control, LEDs, and audio. Replace those adapters with the APIs appropriate to the exact AMB82-Mini board package and peripherals used in the build.
+For example:
 
-## AI Edge Gallery Skill
+User:
+"Find the red cup."
 
-The reference `SKILL.md` gives the model a deliberately small physical-action vocabulary. `scripts/index.html` acts as the bridge between the Skill and the AMB82 HTTP API.
+       ↓
 
-The bridge validates actions before sending them to the toy. This is an important design property: model output is never translated into unrestricted hardware access.
+Camera captures the environment
 
-## Version 2: events
+       ↓
 
-After command/control is stable, add an event channel, for example:
+Gemma4-E2B analyzes the visual information
 
-```text
-ws://giraffe.local/events
-```
+       ↓
 
-Possible events:
+Target object identified
 
-```json
-{"event":"person_detected"}
-{"event":"wave_detected"}
-{"event":"button_pressed"}
-{"event":"picked_up"}
-{"event":"object_detected","object":"book"}
-```
+       ↓
 
-This allows the physical toy to initiate interactions without constant polling.
+RoboCar moves toward the target
+3. AI task planning
+Gemma4-E2B is responsible for high-level task planning.
 
-## Safety and privacy
+For example:
 
-- Enforce servo travel, speed, and timeout limits in firmware, not in prompts.
-- Never expose arbitrary GPIO/PWM control to the language model.
-- Keep moving linkages, batteries, and rigid parts inaccessible through the plush exterior.
-- Use visible indicators for camera/microphone/network activity.
-- Avoid continuous audio/video upload; perform local event detection where practical.
-- Do not store images/audio by default.
-- Provide a physical power switch and preferably hardware camera/microphone disable controls.
-- Validate power supply current and peripheral voltage compatibility before assembly.
-- Treat a modified plush as an engineering prototype unless it has undergone applicable toy/product safety testing.
+User:
+"Find the red cup."
 
-## Suggested implementation order
+Agent:
+1. Search the current area.
+2. Move forward.
+3. Check the camera view.
+4. Avoid obstacles.
+5. Change direction if necessary.
+6. Stop when the red cup is found.
+7. Report the result.
+The AMB82-Mini executes the individual movement commands and provides sensor feedback.
 
-1. Bring up Wi-Fi and `/status`.
-2. Implement bounded LED expressions.
-3. Implement one servo and `/nod` with hard travel limits.
-4. Add camera capture/local detection and `/look`.
-5. Add microSD/audio playback and `/play`.
-6. Install the AI Edge Gallery Skill and test the JavaScript bridge.
-7. Add event-driven perception only after command/control is reliable.
-8. Add richer STT/TTS/MCP integrations at the Android agent layer.
+4. Obstacle avoidance
+The IR distance sensor is used for local obstacle detection.
 
-## Repository layout
+Obstacle avoidance and emergency stopping should be handled locally by the AMB82-Mini rather than depending on the AI model.
 
-```text
-giraffe-agent/
+IR sensor
+    ↓
+Obstacle detected
+    ↓
+AMB82-Mini
+    ↓
+Stop / avoid obstacle
+This allows the RoboCar to react safely even when the AI agent is processing a task.
+
+5. Voice interaction
+The RoboCar includes a microphone and speaker.
+
+The user can directly speak to the robot, while TTS allows the robot to respond naturally.
+
+Example:
+
+User:
+"Can you find the red cup?"
+
+       ↓
+
+Gemma4-E2B
+
+       ↓
+
+RoboCar performs the search
+
+       ↓
+
+Speaker:
+"I found the red cup!"
+6. Edge AI App interaction
+The Android Edge AI App provides an alternative interface for the user.
+
+The App can be used to:
+
+Send text or voice commands.
+View camera information.
+Monitor robot status.
+Start or stop robot tasks.
+Interact with the Gemma4-E2B agent.
+
+##Example application: AI Object Search
+One of the main demonstrations will be an AI object-search task.
+
+User:
+"Find the red cup."
+
+        ↓
+
+Gemma4-E2B
+understands the task
+
+        ↓
+
+Camera
+observes the environment
+
+        ↓
+
+AI Agent
+selects robot actions
+
+        ↓
+
+AMB82-Mini
+controls the motors
+
+        ↓
+
+IR Sensor
+detects obstacles
+
+        ↓
+
+Camera
+checks the environment again
+
+        ↓
+
+Target found
+
+        ↓
+
+RoboCar stops
+
+        ↓
+
+TTS:
+"I found the red cup!"
+This demonstrates the complete Agentic AI loop:
+
+Perception → Reasoning → Planning → Action → Feedback
+
+##Example application: AI Exploration
+The user can also ask:
+
+"Explore the room and tell me what you see."
+The RoboCar can move through the environment while using the camera to observe objects and scenes.
+
+The AI agent can then provide a natural-language description of what the robot has observed.
+
+##Innovation
+The main innovation of this project is the combination of:
+
+Edge AI
+Multimodal perception
+Natural-language interaction
+AI Agent task planning
+Physical robot control
+Instead of simply using AI as a chatbot or using the phone as a remote controller, the project gives the AI an embodied robot that can perceive its environment and perform physical actions.
+
+The RoboCar therefore becomes an Embodied AI Agent capable of:
+
+Seeing → Understanding → Planning → Acting → Reporting
+
+##Hardware
+AMB82-Mini
+Camera
+Microphone
+Speaker
+IR Distance Sensor
+IMU
+Two-wheel Motor Driver
+Two-wheel Robot Chassis
+SD Card
+
+##AI Model
+Gemma4-E2B
+
+Gemma4-E2B is used as the high-level AI agent for natural-language understanding, visual reasoning, task planning, and generating responses.
+
+The AMB82-Mini remains responsible for embedded sensing, real-time control, motor operation, and safety functions.
+
+##Expected results
+The expected final prototype will be able to:
+
+Communicate with users using natural language.
+Receive commands through direct voice interaction.
+Receive commands through an Edge AI App.
+Capture and analyze camera information.
+Understand high-level tasks.
+Plan a sequence of robot actions.
+Move autonomously according to the planned task.
+Detect and avoid obstacles using the IR sensor.
+Respond to users using TTS.
+Demonstrate a complete embodied AI agent workflow.
+
+##Future development
+Future versions may include:
+
+More advanced object recognition.
+Multi-step autonomous missions.
+Improved navigation.
+User-specific preferences.
+Robot memory.
+More complex visual reasoning.
+Multi-robot cooperation.
+
+##Safety and privacy
+Emergency stop and basic obstacle avoidance should be handled locally by the AMB82-Mini.
+Raw PWM and unrestricted GPIO control should not be exposed to the AI model.
+Motor movement should have predefined speed and timeout limits.
+Camera and microphone activity should be clearly indicated.
+Audio and image data should not be stored by default unless required.
+The robot should include a physical power switch.
+Hardware and power connections should be validated before operation.
+
+##Suggested implementation order
+Bring up the AMB82-Mini and basic motor control.
+Implement /status and basic sensor monitoring.
+Implement IR obstacle detection and emergency stop.
+Add camera capture.
+Add microphone and audio playback.
+Implement the RoboCar semantic action API.
+Connect Gemma4-E2B through the Edge AI App.
+Implement direct voice interaction.
+Implement the AI object-search demonstration.
+Add more advanced autonomous tasks.
+
+##Repository layout
+robocar-agent/
 ├── PROPOSAL.md
-├── GiraffeAgent.ino
-├── SKILL.md
-└── scripts/
-    └── index.html
-```
+├── README.md
+├── firmware/
+├── app/
+├── skills/
+├── docs/
+└── media/
+
+##Participation Statement
+If participating in the Realtek technology program, this project will follow the relevant program requirements for development, testing, and demonstration. :::
